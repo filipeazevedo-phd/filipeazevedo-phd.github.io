@@ -1,0 +1,46 @@
+body {
+    background-color: #000;
+    color: #fff;
+    font-family: monospace;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    overflow: auto;
+}
+
+#console {
+    max-width: 750px;
+    width: 90%;
+    margin-top: 2vh;
+    font-size: 12px;
+    white-space: pre-wrap;
+    text-align: left;
+}
+
+.cursor {
+    display: inline-block;
+    background-color: gray;
+    width: 2px;
+    height: 1em;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% { background-color: transparent; }
+}
+
+a { 
+    color: #0bc;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+#a { color: #0f0; }
+#b { color: #ff0096; }
+#c { color: #0bc; }
