@@ -1,68 +1,129 @@
-class Typer {
-    constructor() {
-        this.text = '';
-        this.index = 0;
-        this.speed = 50;
-        this.cursorHTML = '<span class="cursor"></span>';
-        this.consoleElement = document.getElementById('console');
-        this.isTyping = false;
-    }
+document.addEventListener('DOMContentLoaded', () => {
+    const consoleElement = document.getElementById('console');
+    
+    // --- CONFIGURAÇÕES ---
+    const baseSpeed = 30;     
+    const speedVariance = 30; 
+    const contentFile = 'filipe.txt'; 
+    // ---------------------
 
-    async init() {
-        try {
-            const response = await fetch("filipe.txt");
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            this.text = await response.text();
-            this.updateLoginInfo();
-            this.startTyping();
-        } catch (error) {
-            this.displayError(error);
-        }
-    }
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    cursor.style.pointerEvents = 'none'; 
 
-    startTyping() {
-        if (this.isTyping) return;
-        this.isTyping = true;
-        this.typeNextChar();
-    }
-
-    typeNextChar() {
-        if (this.index <= this.text.length) {
-            this.consoleElement.innerHTML = `${this.text.substring(0, this.index)}${this.cursorHTML}`;
-            this.index++;
-            this.checkAndScroll();
-            setTimeout(() => this.typeNextChar(), this.speed);
-        } else {
-            this.isTyping = false;
-        }
-    }
-
-    checkAndScroll() {
-        const cursorElement = this.consoleElement.querySelector('.cursor');
-        if (cursorElement) {
-            const cursorRect = cursorElement.getBoundingClientRect();
-            const bottomOffset = window.innerHeight - cursorRect.bottom;
-
-            if (bottomOffset < 0 || (bottomOffset === 0 && this.consoleElement.scrollHeight > window.innerHeight)) {
-                window.scrollBy({
-                    top: -bottomOffset + 10,
-                    behavior: 'smooth'
+    fetch(contentFile)
+        .then(res => {
+            if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+            return res.text();
+        })
+        .then(html => {
+            consoleElement.appendChild(cursor);
+            
+            // Pequeno delay de "Boot" (0.5s)
+            setTimeout(() => {
+                typeHtml(consoleElement, html, cursor).then(() => {
+                    // TERMINOU DE ESCREVER:
+                    // 1. Cria nova linha (estilo terminal pronto para novo comando)
+                    const finalBreak = document.createElement('br');
+                    consoleElement.appendChild(finalBreak);
+                    consoleElement.appendChild(cursor);
+                    
+                    // 2. Volta a piscar
+                    cursor.classList.remove('typing'); 
+                    
+                    // 3. Scroll final forçado para garantir que se vê o prompt
+                    window.scrollTo(0, document.body.scrollHeight);
                 });
+            }, 500);
+        })
+        .catch(err => {
+            consoleElement.innerHTML = 'Erro ao carregar o sistema.';
+            console.error(err);
+        });
+
+    async function typeHtml(container, htmlString, cursorRef) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, 'text/html');
+
+        // Injeta a Data de Login
+        const loginSpan = doc.getElementById('login-info');
+        if (loginSpan) {
+            const now = new Date();
+            const dateStr = now.toString().split(' GMT')[0]; 
+            loginSpan.textContent = `Last login: ${dateStr} on ttys000\n`;
+        }
+
+        const nodes = Array.from(doc.body.childNodes);
+        
+        // Cursor fica sólido enquanto escreve
+        cursorRef.classList.add('typing');
+
+        for (const node of nodes) {
+            await typeNode(container, node, cursorRef);
+        }
+        
+        cursorRef.classList.remove('typing');
+    }
+
+    async function typeNode(parent, node, cursorRef) {
+        // CASO 1: É UMA TAG HTML
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = document.createElement(node.tagName);
+            
+            Array.from(node.attributes).forEach(attr => {
+                element.setAttribute(attr.name, attr.value);
+            });
+
+            try {
+                parent.insertBefore(element, cursorRef);
+            } catch (e) {
+                parent.appendChild(element);
+            }
+
+            // Pausas em blocos
+            if (['BR', 'P', 'DIV'].includes(node.tagName)) {
+                if (node.tagName === 'BR') {
+                    parent.insertBefore(cursorRef, element.nextSibling);
+                } else if (node.childNodes.length === 0) {
+                    cursorRef.classList.remove('typing');
+                    await wait(300); 
+                    cursorRef.classList.add('typing');
+                }
+            }
+
+            const children = Array.from(node.childNodes);
+            for (const child of children) {
+                await typeNode(element, child, cursorRef);
+            }
+        } 
+        // CASO 2: É TEXTO
+        else if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent;
+            
+            for (const char of text) {
+                // LÓGICA DE STICKY SCROLL
+                // 1. Calcula a distância ao fundo ANTES de escrever
+                // Se estiver a menos de 60px (aprox 3 linhas), consideramos que o user está a acompanhar.
+                const distanceToBottom = document.body.scrollHeight - (window.scrollY + window.innerHeight);
+                const shouldScroll = distanceToBottom < 60;
+
+                // 2. Escreve a letra
+                parent.append(char);
+                parent.appendChild(cursorRef);
+                
+                // 3. Se o user estava no fundo, mantemos no fundo.
+                if (shouldScroll) {
+                    window.scrollTo(0, document.body.scrollHeight);
+                }
+
+                // Velocidade variável humana
+                const randomDelay = baseSpeed + Math.random() * speedVariance;
+                await wait(randomDelay);
             }
         }
     }
 
-    updateLoginInfo() {
-        const portugalTime = new Date().toLocaleString("en-US", {timeZone: "Europe/Lisbon"});
-        const date = new Date(portugalTime);
-        const formattedDate = `${date.toLocaleString('en-US', { weekday: 'short' })} ${date.toLocaleString('en-US', { month: 'short' })} ${date.getDate().toString().padStart(2, '0')} at ${date.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`;
-        this.text = this.text.replace('<span id="login-info"></span>', `Last login: ${formattedDate} on console\n\n`);
+    function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
-
-    displayError(error) {
-        console.error('Error loading content:', error);
-        this.consoleElement.innerHTML = '<p style="color:red;">Failed to load content. Please try again later.</p>';
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => new Typer().init());
+});

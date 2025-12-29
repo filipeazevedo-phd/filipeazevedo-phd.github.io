@@ -1,22 +1,42 @@
+/* Reset Universal */
+* {
+    box-sizing: border-box;
+}
+
 body {
     background-color: #000;
     color: #fff;
     font-family: monospace;
     margin: 0;
-    padding: 0;
+    
+    /* SEGURANÇA UNIVERSAL PARA IPHONE/ANDROID/PC */
+    /* Empurra o conteúdo para baixo se houver uma câmara no ecrã */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    min-height: 100vh;
-    overflow: auto;
+    
+    /* 100dvh garante que o site ocupa o ecrã todo sem saltos no telemóvel */
+    min-height: 100dvh; 
+    overflow-y: scroll;
 }
 
 #console {
     max-width: 750px;
     width: 90%;
-    margin-top: 2vh;
+    
+    /* Espaçamento interno estético */
+    padding-top: 20px; 
+    padding-bottom: 50px; /* Margem no fundo para o scroll não bater no limite */
+    
     font-size: 12px;
+    line-height: 1.4;
     white-space: pre-wrap;
+    word-break: break-word;
     text-align: left;
 }
 
@@ -25,16 +45,24 @@ body {
     background-color: gray;
     width: 2px;
     height: 1em;
+    vertical-align: text-bottom;
     animation: blink 1s step-end infinite;
 }
 
+/* Cursor estático enquanto escreve */
+.cursor.typing {
+    animation: none;
+    opacity: 1; 
+}
+
 @keyframes blink {
-    50% { background-color: transparent; }
+    50% { opacity: 0; }
 }
 
 a { 
     color: #0bc;
     text-decoration: none;
+    cursor: pointer;
 }
 
 a:hover {
