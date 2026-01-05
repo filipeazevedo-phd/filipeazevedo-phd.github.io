@@ -7,15 +7,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentFile = 'filipe.txt'; 
     // ---------------------
 
-    // --- LOGICA DE CONTROLO DE INTERAÇÃO (CRÍTICO PARA MOBILE) ---
+    // --- LOGICA DE CONTROLO DE INTERAÇÃO ---
     let userIsTouching = false;
 
-    // Assim que o dedo toca no ecrã, o autoscroll morre imediatamente.
-    // passive: true melhora a performance do scroll
     window.addEventListener('touchstart', () => { userIsTouching = true; }, { passive: true });
     window.addEventListener('touchend', () => { userIsTouching = false; }, { passive: true });
     
-    // Para PC (rato)
     window.addEventListener('mousedown', () => { userIsTouching = true; });
     window.addEventListener('mouseup', () => { userIsTouching = false; });
 
@@ -39,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     cursor.classList.remove('typing'); 
                     
-                    // Scroll final apenas se o user não estiver a segurar o ecrã
                     if (!userIsTouching) {
                         window.scrollTo(0, document.body.scrollHeight);
                     }
@@ -76,9 +72,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (node.nodeType === Node.ELEMENT_NODE) {
             const element = document.createElement(node.tagName);
             
+            // Copia atributos originais do HTML
             Array.from(node.attributes).forEach(attr => {
                 element.setAttribute(attr.name, attr.value);
             });
+
+            // --- NOVO: FORÇAR LINKS A ABRIR EM NOVA TAB ---
+            if (node.tagName === 'A') {
+                element.setAttribute('target', '_blank');
+                // Segurança: impede o novo site de ter acesso à tua janela
+                element.setAttribute('rel', 'noopener noreferrer');
+            }
+            // ----------------------------------------------
 
             try {
                 parent.insertBefore(element, cursorRef);
@@ -105,19 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const text = node.textContent;
             
             for (const char of text) {
-                // 1. SNAPSHOT: Verifica se estavas no fundo ANTES de escrever
-                // Se a distância for < 30px, consideramos que estavas a acompanhar
+                // 1. SNAPSHOT
                 const wasAtBottom = isAtBottom(30);
 
                 // 2. ESCREVE
                 parent.append(char);
                 parent.appendChild(cursorRef);
                 
-                // 3. AÇÃO:
-                // Só faz scroll SE já estavas no fundo ANTES
-                // E SE o dedo não estiver no ecrã.
+                // 3. AÇÃO
                 if (wasAtBottom && !userIsTouching) {
-                    // Sem 'smooth' behavior para evitar conflitos de animação
                     window.scrollTo(0, document.body.scrollHeight);
                 }
 
@@ -127,16 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Função de cálculo de posição precisa para Mobile
     function isAtBottom(threshold = 30) {
-        // VisualViewport lida melhor com zoom e barras do Android/iOS
         const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
         const currentScroll = Math.ceil(window.scrollY);
         const totalHeight = document.body.scrollHeight;
         
         const distance = totalHeight - (currentScroll + viewportHeight);
-        
-        // Retorna verdadeiro se a distância ao fundo for pequena
         return distance < threshold;
     }
 
