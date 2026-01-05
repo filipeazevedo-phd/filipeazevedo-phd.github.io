@@ -22,16 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // Pequeno delay de "Boot" (0.5s)
             setTimeout(() => {
                 typeHtml(consoleElement, html, cursor).then(() => {
-                    // TERMINOU DE ESCREVER:
-                    // 1. Cria nova linha (estilo terminal pronto para novo comando)
+                    // TERMINOU DE ESCREVER
                     const finalBreak = document.createElement('br');
                     consoleElement.appendChild(finalBreak);
                     consoleElement.appendChild(cursor);
                     
-                    // 2. Volta a piscar
                     cursor.classList.remove('typing'); 
                     
-                    // 3. Scroll final forçado para garantir que se vê o prompt
+                    // Scroll final forçado
                     window.scrollTo(0, document.body.scrollHeight);
                 });
             }, 500);
@@ -45,17 +43,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
 
-        // Injeta a Data de Login
+        // Injeta a Data de Login se o elemento existir
         const loginSpan = doc.getElementById('login-info');
         if (loginSpan) {
             const now = new Date();
+            // Formatação simples de data estilo UNIX
             const dateStr = now.toString().split(' GMT')[0]; 
             loginSpan.textContent = `Last login: ${dateStr} on ttys000\n`;
         }
 
         const nodes = Array.from(doc.body.childNodes);
         
-        // Cursor fica sólido enquanto escreve
         cursorRef.classList.add('typing');
 
         for (const node of nodes) {
@@ -80,11 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 parent.appendChild(element);
             }
 
-            // Pausas em blocos
+            // Lógica de pausas para blocos específicos
             if (['BR', 'P', 'DIV'].includes(node.tagName)) {
                 if (node.tagName === 'BR') {
+                    // Move o cursor para depois do BR
                     parent.insertBefore(cursorRef, element.nextSibling);
                 } else if (node.childNodes.length === 0) {
+                    // Pausa dramática em elementos vazios
                     cursorRef.classList.remove('typing');
                     await wait(300); 
                     cursorRef.classList.add('typing');
@@ -101,22 +101,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const text = node.textContent;
             
             for (const char of text) {
-                // LÓGICA DE STICKY SCROLL
-                // 1. Calcula a distância ao fundo ANTES de escrever
-                // Se estiver a menos de 60px (aprox 3 linhas), consideramos que o user está a acompanhar.
-                const distanceToBottom = document.body.scrollHeight - (window.scrollY + window.innerHeight);
-                const shouldScroll = distanceToBottom < 60;
+                // --- LÓGICA DE SCROLL CORRIGIDA PARA MOBILE ---
+                
+                // 1. Obter altura real da viewport (lida com barra de URL do Chrome)
+                const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                
+                // 2. Calcular distância ao fundo com margem de segurança
+                // Math.ceil ajuda com pixeis fracionados em ecrãs retina/high-dpi
+                const currentScroll = Math.ceil(window.scrollY);
+                const totalHeight = document.body.scrollHeight;
+                const distanceToBottom = totalHeight - (currentScroll + viewportHeight);
+                
+                // Se a distância for menor que 80px, consideramos que o user quer autoscroll
+                const shouldScroll = distanceToBottom < 80;
 
-                // 2. Escreve a letra
+                // 3. Escreve a letra
                 parent.append(char);
                 parent.appendChild(cursorRef);
                 
-                // 3. Se o user estava no fundo, mantemos no fundo.
+                // 4. Executa o scroll se necessário
                 if (shouldScroll) {
                     window.scrollTo(0, document.body.scrollHeight);
                 }
 
-                // Velocidade variável humana
+                // Velocidade variável
                 const randomDelay = baseSpeed + Math.random() * speedVariance;
                 await wait(randomDelay);
             }

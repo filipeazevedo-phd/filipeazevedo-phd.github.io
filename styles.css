@@ -10,7 +10,6 @@ body {
     margin: 0;
     
     /* SEGURANÇA UNIVERSAL PARA IPHONE/ANDROID/PC */
-    /* Empurra o conteúdo para baixo se houver uma câmara no ecrã */
     padding-top: env(safe-area-inset-top);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
@@ -23,15 +22,18 @@ body {
     /* 100dvh garante que o site ocupa o ecrã todo sem saltos no telemóvel */
     min-height: 100dvh; 
     overflow-y: scroll;
+
+    /* CORREÇÃO CRÍTICA PARA CHROME MOBILE */
+    /* Impede o efeito 'elástico' que bloqueia o scroll automático */
+    overscroll-behavior-y: none;
 }
 
 #console {
     max-width: 750px;
     width: 90%;
     
-    /* Espaçamento interno estético */
     padding-top: 20px; 
-    padding-bottom: 50px; /* Margem no fundo para o scroll não bater no limite */
+    padding-bottom: 50px; 
     
     font-size: 12px;
     line-height: 1.4;
