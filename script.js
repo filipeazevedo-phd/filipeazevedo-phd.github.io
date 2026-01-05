@@ -7,6 +7,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentFile = 'filipe.txt'; 
     // ---------------------
 
+    // --- DETEÇÃO DE INTERAÇÃO DO UTILIZADOR ---
+    let userIsTouching = false;
+
+    // Se o user tocar no ecrã, bloqueamos o autoscroll IMEDIATAMENTE
+    window.addEventListener('touchstart', () => {
+        userIsTouching = true;
+    }, { passive: true });
+
+    // Quando o user tira o dedo, permitimos que a lógica decida se deve fazer scroll ou não
+    window.addEventListener('touchend', () => {
+        userIsTouching = false;
+    }, { passive: true });
+    // ------------------------------------------
+
     const cursor = document.createElement('span');
     cursor.className = 'cursor';
     cursor.style.pointerEvents = 'none'; 
@@ -19,18 +33,18 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(html => {
             consoleElement.appendChild(cursor);
             
-            // Pequeno delay de "Boot" (0.5s)
             setTimeout(() => {
                 typeHtml(consoleElement, html, cursor).then(() => {
-                    // TERMINOU DE ESCREVER
                     const finalBreak = document.createElement('br');
                     consoleElement.appendChild(finalBreak);
                     consoleElement.appendChild(cursor);
                     
                     cursor.classList.remove('typing'); 
                     
-                    // Scroll final forçado
-                    window.scrollTo(0, document.body.scrollHeight);
+                    // No final forçamos sempre o scroll, a menos que o user esteja a segurar o ecrã
+                    if (!userIsTouching) {
+                        window.scrollTo(0, document.body.scrollHeight);
+                    }
                 });
             }, 500);
         })
@@ -43,17 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
 
-        // Injeta a Data de Login se o elemento existir
         const loginSpan = doc.getElementById('login-info');
         if (loginSpan) {
             const now = new Date();
-            // Formatação simples de data estilo UNIX
             const dateStr = now.toString().split(' GMT')[0]; 
             loginSpan.textContent = `Last login: ${dateStr} on ttys000\n`;
         }
 
         const nodes = Array.from(doc.body.childNodes);
-        
         cursorRef.classList.add('typing');
 
         for (const node of nodes) {
@@ -64,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function typeNode(parent, node, cursorRef) {
-        // CASO 1: É UMA TAG HTML
         if (node.nodeType === Node.ELEMENT_NODE) {
             const element = document.createElement(node.tagName);
             
@@ -78,13 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 parent.appendChild(element);
             }
 
-            // Lógica de pausas para blocos específicos
             if (['BR', 'P', 'DIV'].includes(node.tagName)) {
                 if (node.tagName === 'BR') {
-                    // Move o cursor para depois do BR
                     parent.insertBefore(cursorRef, element.nextSibling);
                 } else if (node.childNodes.length === 0) {
-                    // Pausa dramática em elementos vazios
                     cursorRef.classList.remove('typing');
                     await wait(300); 
                     cursorRef.classList.add('typing');
@@ -96,35 +103,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 await typeNode(element, child, cursorRef);
             }
         } 
-        // CASO 2: É TEXTO
         else if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent;
             
             for (const char of text) {
-                // --- LÓGICA DE SCROLL CORRIGIDA PARA MOBILE ---
-                
-                // 1. Obter altura real da viewport (lida com barra de URL do Chrome)
+                // --- CÁLCULOS DE SCROLL ---
                 const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                
-                // 2. Calcular distância ao fundo com margem de segurança
-                // Math.ceil ajuda com pixeis fracionados em ecrãs retina/high-dpi
                 const currentScroll = Math.ceil(window.scrollY);
                 const totalHeight = document.body.scrollHeight;
                 const distanceToBottom = totalHeight - (currentScroll + viewportHeight);
                 
-                // Se a distância for menor que 80px, consideramos que o user quer autoscroll
-                const shouldScroll = distanceToBottom < 80;
+                // Agora temos DUAS condições para fazer scroll automático:
+                // 1. Estar perto do fundo (< 80px)
+                // 2. O utilizador NÃO estar a tocar no ecrã (userIsTouching === false)
+                const shouldScroll = (distanceToBottom < 80) && (!userIsTouching);
 
-                // 3. Escreve a letra
+                // Escreve a letra
                 parent.append(char);
                 parent.appendChild(cursorRef);
                 
-                // 4. Executa o scroll se necessário
+                // Só faz scroll se o user permitir
                 if (shouldScroll) {
                     window.scrollTo(0, document.body.scrollHeight);
                 }
 
-                // Velocidade variável
                 const randomDelay = baseSpeed + Math.random() * speedVariance;
                 await wait(randomDelay);
             }
