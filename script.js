@@ -7,19 +7,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentFile = 'filipe.txt'; 
     // ---------------------
 
-    // --- DETEÇÃO DE INTERAÇÃO DO UTILIZADOR ---
-    let userIsTouching = false;
+    // --- CONTROLO DE INTERAÇÃO ---
+    let userIsInteracting = false;
 
-    // Se o user tocar no ecrã, bloqueamos o autoscroll IMEDIATAMENTE
-    window.addEventListener('touchstart', () => {
-        userIsTouching = true;
-    }, { passive: true });
+    // Detetar qualquer tipo de interação (Toque, Rato, Scroll manual)
+    const interactionEvents = ['touchstart', 'wheel', 'mousedown', 'pointerdown'];
 
-    // Quando o user tira o dedo, permitimos que a lógica decida se deve fazer scroll ou não
+    interactionEvents.forEach(evt => {
+        // passive: true melhora a performance e garante que o browser não bloqueia
+        window.addEventListener(evt, () => {
+            userIsInteracting = true;
+        }, { passive: true });
+    });
+
     window.addEventListener('touchend', () => {
-        userIsTouching = false;
+        // Pequeno delay para garantir que o scroll de inércia (momentum) não é cortado
+        setTimeout(() => {
+            userIsInteracting = false;
+        }, 100);
     }, { passive: true });
-    // ------------------------------------------
+
+    window.addEventListener('mouseup', () => {
+        userIsInteracting = false;
+    });
 
     const cursor = document.createElement('span');
     cursor.className = 'cursor';
@@ -41,8 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     cursor.classList.remove('typing'); 
                     
-                    // No final forçamos sempre o scroll, a menos que o user esteja a segurar o ecrã
-                    if (!userIsTouching) {
+                    if (!userIsInteracting) {
                         window.scrollTo(0, document.body.scrollHeight);
                     }
                 });
@@ -107,23 +116,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const text = node.textContent;
             
             for (const char of text) {
-                // --- CÁLCULOS DE SCROLL ---
+                // 1. ANÁLISE: Onde estamos ANTES de escrever a letra?
+                // Usamos visualViewport para precisão no telemóvel
                 const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
                 const currentScroll = Math.ceil(window.scrollY);
                 const totalHeight = document.body.scrollHeight;
                 const distanceToBottom = totalHeight - (currentScroll + viewportHeight);
-                
-                // Agora temos DUAS condições para fazer scroll automático:
-                // 1. Estar perto do fundo (< 80px)
-                // 2. O utilizador NÃO estar a tocar no ecrã (userIsTouching === false)
-                const shouldScroll = (distanceToBottom < 80) && (!userIsTouching);
 
-                // Escreve a letra
+                // 2. DECISÃO:
+                // Reduzi a tolerância de 80px para 20px. 
+                // Se puxares o dedo um bocadinho (mais de 20px), ele para logo de te puxar.
+                // E verificamos se o user está a tocar no ecrã (userIsInteracting).
+                const isGluedToBottom = distanceToBottom < 20; 
+                const shouldAutoScroll = isGluedToBottom && !userIsInteracting;
+
+                // 3. AÇÃO: Escreve a letra
                 parent.append(char);
                 parent.appendChild(cursorRef);
                 
-                // Só faz scroll se o user permitir
-                if (shouldScroll) {
+                // 4. SCROLL: Só executamos se as condições forem perfeitas
+                if (shouldAutoScroll) {
                     window.scrollTo(0, document.body.scrollHeight);
                 }
 
