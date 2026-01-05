@@ -1,6 +1,8 @@
 /* Reset Universal */
 * {
     box-sizing: border-box;
+    /* CRÍTICO: Impede o browser de tentar 'ancorar' o scroll quando o conteúdo muda */
+    overflow-anchor: none;
 }
 
 body {
@@ -24,7 +26,7 @@ body {
     overflow-y: scroll;
 
     /* CORREÇÃO CRÍTICA PARA CHROME MOBILE */
-    /* Impede o efeito 'elástico' que bloqueia o scroll automático */
+    /* Impede o efeito 'elástico' que bloqueia a deteção de scroll */
     overscroll-behavior-y: none;
 }
 

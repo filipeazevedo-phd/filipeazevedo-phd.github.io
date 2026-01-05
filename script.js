@@ -7,29 +7,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentFile = 'filipe.txt'; 
     // ---------------------
 
-    // --- CONTROLO DE INTERAÇÃO ---
-    let userIsInteracting = false;
+    // --- LOGICA DE CONTROLO DE INTERAÇÃO (CRÍTICO PARA MOBILE) ---
+    let userIsTouching = false;
 
-    // Detetar qualquer tipo de interação (Toque, Rato, Scroll manual)
-    const interactionEvents = ['touchstart', 'wheel', 'mousedown', 'pointerdown'];
-
-    interactionEvents.forEach(evt => {
-        // passive: true melhora a performance e garante que o browser não bloqueia
-        window.addEventListener(evt, () => {
-            userIsInteracting = true;
-        }, { passive: true });
-    });
-
-    window.addEventListener('touchend', () => {
-        // Pequeno delay para garantir que o scroll de inércia (momentum) não é cortado
-        setTimeout(() => {
-            userIsInteracting = false;
-        }, 100);
-    }, { passive: true });
-
-    window.addEventListener('mouseup', () => {
-        userIsInteracting = false;
-    });
+    // Assim que o dedo toca no ecrã, o autoscroll morre imediatamente.
+    // passive: true melhora a performance do scroll
+    window.addEventListener('touchstart', () => { userIsTouching = true; }, { passive: true });
+    window.addEventListener('touchend', () => { userIsTouching = false; }, { passive: true });
+    
+    // Para PC (rato)
+    window.addEventListener('mousedown', () => { userIsTouching = true; });
+    window.addEventListener('mouseup', () => { userIsTouching = false; });
 
     const cursor = document.createElement('span');
     cursor.className = 'cursor';
@@ -51,7 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     cursor.classList.remove('typing'); 
                     
-                    if (!userIsInteracting) {
+                    // Scroll final apenas se o user não estiver a segurar o ecrã
+                    if (!userIsTouching) {
                         window.scrollTo(0, document.body.scrollHeight);
                     }
                 });
@@ -116,26 +105,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const text = node.textContent;
             
             for (const char of text) {
-                // 1. ANÁLISE: Onde estamos ANTES de escrever a letra?
-                // Usamos visualViewport para precisão no telemóvel
-                const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                const currentScroll = Math.ceil(window.scrollY);
-                const totalHeight = document.body.scrollHeight;
-                const distanceToBottom = totalHeight - (currentScroll + viewportHeight);
+                // 1. SNAPSHOT: Verifica se estavas no fundo ANTES de escrever
+                // Se a distância for < 30px, consideramos que estavas a acompanhar
+                const wasAtBottom = isAtBottom(30);
 
-                // 2. DECISÃO:
-                // Reduzi a tolerância de 80px para 20px. 
-                // Se puxares o dedo um bocadinho (mais de 20px), ele para logo de te puxar.
-                // E verificamos se o user está a tocar no ecrã (userIsInteracting).
-                const isGluedToBottom = distanceToBottom < 20; 
-                const shouldAutoScroll = isGluedToBottom && !userIsInteracting;
-
-                // 3. AÇÃO: Escreve a letra
+                // 2. ESCREVE
                 parent.append(char);
                 parent.appendChild(cursorRef);
                 
-                // 4. SCROLL: Só executamos se as condições forem perfeitas
-                if (shouldAutoScroll) {
+                // 3. AÇÃO:
+                // Só faz scroll SE já estavas no fundo ANTES
+                // E SE o dedo não estiver no ecrã.
+                if (wasAtBottom && !userIsTouching) {
+                    // Sem 'smooth' behavior para evitar conflitos de animação
                     window.scrollTo(0, document.body.scrollHeight);
                 }
 
@@ -143,6 +125,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 await wait(randomDelay);
             }
         }
+    }
+
+    // Função de cálculo de posição precisa para Mobile
+    function isAtBottom(threshold = 30) {
+        // VisualViewport lida melhor com zoom e barras do Android/iOS
+        const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        const currentScroll = Math.ceil(window.scrollY);
+        const totalHeight = document.body.scrollHeight;
+        
+        const distance = totalHeight - (currentScroll + viewportHeight);
+        
+        // Retorna verdadeiro se a distância ao fundo for pequena
+        return distance < threshold;
     }
 
     function wait(ms) {
