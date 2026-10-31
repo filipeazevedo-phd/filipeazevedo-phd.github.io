@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     cursor.className = 'cursor';
     cursor.style.pointerEvents = 'none'; 
 
-    fetch(contentFile)
+    // 'no-cache': o browser confirma sempre com o servidor se o ficheiro mudou
+    fetch(contentFile, { cache: 'no-cache' })
         .then(res => {
             if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
             return res.text();
